@@ -1,0 +1,113 @@
+﻿@page "/usuarios"
+
+@inject IUsuarioServicio usuarioServicio
+@inject IToastService toastService
+@inject SweetAlertService Swal
+
+@attribute [Authorize(Roles = "Administrador")]
+
+<div class="row justify-content-center  mt-3">
+    <div class="col-sm-6 col-md-4 col-xl-3 mb-4">
+        <div class="d-grid gap-1 col-12 mx-auto">
+            <a class="btn btn-primary" href="/usuario">Nuevo usuario</a>
+        </div>
+    </div>
+    <div class="col-sm-6 col-md-8 col-xl-9 mb-4">
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" placeholder="Buscar usuario..." @bind-value="buscar">
+            <button class="btn btn-outline-secondary" type="button" @onclick="(async()=> await ObtenerUsuarios(buscar))">
+                <i class="oi oi-magnifying-glass"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row gx-4 row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 justify-content-start mt-2">
+
+  
+    @if (lista != null)
+    {
+        foreach (var item in lista)
+        {
+            <div class="col mb-5">
+                <div class="card h-100">
+                    <div class="card-body p-4">
+                        <div class="text-center">
+                            <i class="oi oi-person" style="font-size:50px"></i>
+                        </div>
+                        <div class="text-start">
+                            <p class="m-1"><b>Nombre: </b>@item.NombreCompleto</p>
+                            <p class="m-1"><b>Correo: </b>@item.Correo</p>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="row justify-content-between">
+                            <a class="col-5 btn btn-sm btn-outline-primary mt-auto" href="/usuario/@item.IdUsuario"><i class="oi oi-pencil fs-5"></i></a>
+                            <button class="col-5 btn btn-sm btn-outline-danger mt-auto" type="button" @onclick="(async () => await Eliminar(item))">
+                                <i class="oi oi-trash fs-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+    }
+    else
+    {
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    }
+</div>
+
+@code {
+    private List<UsuarioDTO>? lista = null;
+    private string buscar = "";
+
+    private async Task ObtenerUsuarios(string Valor = "")
+    {
+        var response = await usuarioServicio.Lista("Administrador", Valor);
+
+        if (response.EsCorrecto)
+        {
+            lista = (List<UsuarioDTO>)response.Resultado!;
+        } else
+        {
+            lista = new List<UsuarioDTO>();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ObtenerUsuarios();
+    }
+
+    private async Task Eliminar(UsuarioDTO modelo)
+    {
+        SweetAlertResult result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = "¿Está seguro?",
+            Text = $"Eliminar usuario: {modelo.NombreCompleto}",
+            Icon = SweetAlertIcon.Warning,
+            ShowCancelButton = true,
+            ConfirmButtonText = "Sí, eliminar",
+            CancelButtonText = "No, volver"
+        });
+
+        if (result.IsConfirmed)
+        {
+            var response = await usuarioServicio.Eliminar(modelo.IdUsuario);
+
+            if (response.EsCorrecto)
+            {
+                await ObtenerUsuarios();
+                toastService.ShowSuccess("El usuario fue eliminado");
+            } 
+            else
+            {
+                toastService.ShowWarning(response.Mensaje!);
+            }
+        }
+    }
+}
